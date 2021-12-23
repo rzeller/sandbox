@@ -90,6 +90,15 @@ def preprocess(df, continuous, categorical=None):
     x_test = [images_test, features_test]
     return x_train, y_train, x_test, y_test
 
+def preprocess_multitask(df, continuous, categorical=None):
+    images_train, weights_train, images_test, weights_test = preprocess_images(df)
+    features_train, fees_train, features_test, fees_test = preprocess_features(df, continuous=continuous,
+                                                                         categorical=categorical)
+    x_train = [images_train, features_train]
+    x_test = [images_test, features_test]
+
+    return x_train, weights_train, fees_train, x_test, weights_test, fees_test
+
 
 def create_mlp_sequential(num_features, layer_sizes=[32, 16], regress=False, summarize=False):
     # This is the old way of creating the model, which will not work when we combine with the other branch.
@@ -132,10 +141,29 @@ def create_combined_model(image_shape, num_features, mlp_layer_sizes=[32, 32], c
     for i, layer_size in enumerate(combined_layer_sizes):
         if i == 0:
             x = combined_output
-        x = Dense(4, activation="relu")(x)
+        x = Dense(layer_size, activation="relu")(x)
 
     x = Dense(1, activation="linear")(x)
 
     model = Model(inputs=[cnn.input, mlp.input], outputs=x)
+
+    return model
+
+
+def create_multitask_model(image_shape, num_features, mlp_layer_sizes=[32, 32], combined_layer_sizes=[32, 32]):
+    cnn = create_cnn(input_shape=image_shape)
+    mlp = create_mlp(num_features=num_features, layer_sizes=mlp_layer_sizes)
+
+    combined_output = concatenate([cnn.output, mlp.output])
+
+    for i, layer_size in enumerate(combined_layer_sizes):
+        if i == 0:
+            x = combined_output
+        x = Dense(layer_size, activation="relu")(x)
+
+    weight = Dense(1, activation="linear", name='weight')(x)
+    shipping_fee = Dense(1, activation="linear", name='shipping_fee')(x)
+
+    model = Model(inputs=[cnn.input, mlp.input], outputs=[weight, shipping_fee])
 
     return model
