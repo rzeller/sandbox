@@ -150,7 +150,8 @@ def create_combined_model(image_shape, num_features, mlp_layer_sizes=[32, 32], c
     return model
 
 
-def create_multitask_model(image_shape, num_features, mlp_layer_sizes=[32, 32], combined_layer_sizes=[32, 32]):
+def create_multitask_model(image_shape, num_features, mlp_layer_sizes=[32, 32], combined_layer_sizes=[32, 32],
+                           weight_input=None):
     cnn = create_cnn(input_shape=image_shape)
     mlp = create_mlp(num_features=num_features, layer_sizes=mlp_layer_sizes)
 
@@ -161,7 +162,11 @@ def create_multitask_model(image_shape, num_features, mlp_layer_sizes=[32, 32], 
             x = combined_output
         x = Dense(layer_size, activation="relu")(x)
 
-    weight = Dense(1, activation="linear", name='weight')(x)
+    if weight_input=='cnn':
+        weight = Dense(1, activation="linear", name='weight')(cnn.output)
+    else:
+        weight = Dense(1, activation="linear", name='weight')(x)
+
     shipping_fee = Dense(1, activation="linear", name='shipping_fee')(x)
 
     model = Model(inputs=[cnn.input, mlp.input], outputs=[weight, shipping_fee])
